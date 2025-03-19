@@ -91,7 +91,7 @@ def visualizar_despesas():
     st.subheader("📋 Despesas Registradas")
     st.dataframe(df)
 
-# cadastro de picklist
+# picklist
 def gerenciar_picklists():
     st.title("📌 Gerenciar Picklists")
 
@@ -122,24 +122,38 @@ def gerenciar_picklists():
             st.warning("⚠️ O campo de valor não pode estar vazio!")
 
     # Seção para editar valores existentes
-    st.subheader("✏️ Editar um Valor Existente")
+    st.subheader("✏️ Editar ou Remover um Valor")
 
     if not df.empty:
-        # Escolher um valor para editar
-        selected_id = st.selectbox("Selecione um valor para editar", df["id"].tolist(), format_func=lambda x: df[df["id"] == x]["valor"].values[0])
+        # Escolher um valor para editar ou excluir
+        selected_id = st.selectbox("Selecione um valor", df["id"].tolist(), format_func=lambda x: df[df["id"] == x]["valor"].values[0])
         new_edit_value = st.text_input("📝 Novo Texto para este Valor")
 
-        if st.button("✏️ Atualizar Valor"):
-            if new_edit_value:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("✏️ Atualizar Valor"):
+                if new_edit_value:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE picklists SET valor = %s WHERE id = %s", (new_edit_value, selected_id))
+                    conn.commit()
+                    conn.close()
+                    st.success(f"✅ Valor atualizado para '{new_edit_value}'")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ O campo de novo valor não pode estar vazio!")
+
+        with col2:
+            if st.button("❌ Excluir Valor", key="delete"):
                 conn = get_connection()
                 cursor = conn.cursor()
-                cursor.execute("UPDATE picklists SET valor = %s WHERE id = %s", (new_edit_value, selected_id))
+                cursor.execute("DELETE FROM picklists WHERE id = %s", (selected_id,))
                 conn.commit()
                 conn.close()
-                st.success(f"✅ Valor atualizado para '{new_edit_value}'")
+                st.success(f"🚮 Valor removido com sucesso!")
                 st.rerun()
-            else:
-                st.warning("⚠️ O campo de novo valor não pode estar vazio!")
+
 
 # Rodar a página
 st.sidebar.title("📌 Menu")
