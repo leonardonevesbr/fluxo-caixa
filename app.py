@@ -154,6 +154,9 @@ def gerenciar_picklists():
                 st.success(f"🚮 Valor removido com sucesso!")
                 st.rerun()
 
+    st.cache_data.clear()
+    st.rerun()
+
 
 # Rodar a página
 st.sidebar.title("📌 Menu")
