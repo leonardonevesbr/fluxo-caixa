@@ -54,6 +54,63 @@ def cadastrar_despesa():
         conn.close()
         st.success("✅ Despesa cadastrada com sucesso!")
 
+def gerenciar_despesas():
+    st.title("📝 Gerenciar Despesas")
+
+    conn = get_connection()
+    query = "SELECT id, data, detalhamento, categoria, tipo, valor, quem, recorrente, forma FROM despesas ORDER BY data DESC"
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    if df.empty:
+        st.warning("⚠️ Nenhuma despesa cadastrada.")
+        return
+
+    # Exibir tabela de despesas
+    st.dataframe(df)
+
+    # Selecionar uma despesa para editar ou remover
+    despesa_id = st.selectbox("📌 Selecione uma Despesa para Editar ou Remover", df["id"].tolist(), format_func=lambda x: f"{df[df['id'] == x]['detalhamento'].values[0]} - R$ {df[df['id'] == x]['valor'].values[0]:.2f}")
+
+    if despesa_id:
+        # Pegar os detalhes da despesa selecionada
+        despesa = df[df["id"] == despesa_id].iloc[0]
+
+        # Criar campos editáveis com os valores atuais da despesa
+        data = st.date_input("📅 Data", pd.to_datetime(despesa["data"]).date(), format="DD/MM/YYYY")
+        detalhamento = st.text_area("📝 Detalhamento", despesa["detalhamento"])
+        categoria = st.selectbox("📂 Categoria", get_picklist_options("Categoria"), index=get_picklist_options("Categoria").index(despesa["categoria"]))
+        tipo = st.selectbox("📊 Tipo", get_picklist_options("Tipo"), index=get_picklist_options("Tipo").index(despesa["tipo"]))
+        valor = st.number_input("💰 Valor Unitário (R$)", min_value=0.0, value=float(despesa["valor"]), format="%.2f")
+        quem = st.selectbox("🙋‍♂️ Quem", get_picklist_options("Quem"), index=get_picklist_options("Quem").index(despesa["quem"]))
+        recorrente = st.selectbox("🔄 Recorrente", get_picklist_options("Recorrente"), index=get_picklist_options("Recorrente").index(despesa["recorrente"]))
+        forma = st.selectbox("💳 Forma de Pagamento", get_picklist_options("Forma"), index=get_picklist_options("Forma").index(despesa["forma"]))
+
+        # Criar colunas para botões de ação
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("✏️ Atualizar Despesa"):
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE despesas SET data = %s, detalhamento = %s, categoria = %s, tipo = %s, valor = %s, quem = %s, recorrente = %s, forma = %s WHERE id = %s
+                ''', (data, detalhamento, categoria, tipo, valor, quem, recorrente, forma, despesa_id))
+                conn.commit()
+                conn.close()
+                st.success("✅ Despesa atualizada com sucesso!")
+                st.rerun()
+
+        with col2:
+            if st.button("❌ Remover Despesa", key="delete"):
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM despesas WHERE id = %s", (despesa_id,))
+                conn.commit()
+                conn.close()
+                st.success("🚮 Despesa removida com sucesso!")
+                st.rerun()
+
 
 # consulta despesas no banco e as exibe
 def visualizar_despesas():
@@ -267,12 +324,14 @@ def visualizar_consolidado():
 
 # Rodar a página
 st.sidebar.title("📌 Menu")
-pagina = st.sidebar.radio("Escolha uma opção:", ["Cadastrar Despesa", "Consultar Despesas", "Gerenciar Picklists", "Importar Despesas", "Visão Consolidada"])
+pagina = st.sidebar.radio("Escolha uma opção:", ["Cadastrar Despesa", "Consultar Despesas", "Gerenciar Despesas", "Gerenciar Picklists", "Importar Despesas", "Visão Consolidada"])
 
 if pagina == "Cadastrar Despesa":
     cadastrar_despesa()
 elif pagina == "Consultar Despesas":
     visualizar_despesas()
+elif pagina == "Gerenciar Despesas":
+    gerenciar_despesas()
 elif pagina == "Gerenciar Picklists":
     gerenciar_picklists()
 elif pagina == "Importar Despesas":
